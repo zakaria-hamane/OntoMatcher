@@ -1,4 +1,9 @@
 # OntoMatcher
+This is the README file for the Project OntoMatcher. Please note that this README is still a work in progress and may not contain complete information yet.
+
+## Status: In Progress
+
+**Note: This README is still being updated. Please check back later for the complete version.**
 
 ## Downloading and Extracting Files from Google Drive
 
