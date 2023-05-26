@@ -4,6 +4,9 @@ This is the README file for the Project OntoMatcher. Please note that this READM
 ## Status: In Progress
 
 **Note: This README is still being updated. Please check back later for the complete version.**
+```bash
+pip install -r requirements.txt
+```
 
 ## Downloading and Extracting Files from Google Drive
 
