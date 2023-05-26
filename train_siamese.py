@@ -7,6 +7,7 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import GridSearchCV
+from keras_tuner import HyperParameters
 from keras_tuner.tuners import RandomSearch
 from tensorflow.keras.models import load_model
 import os
@@ -66,8 +67,8 @@ class SiameseNetwork:
             objective='val_accuracy',
             max_trials=5,
             executions_per_trial=3,
-            directory='random_search',
-            project_name='siamese_tuning',
+            directory='model/siamese/random_search',
+            project_name='model/siamese/siamese_tuning',
             overwrite=True
         )
         tuner.search([ent_src_data, ent_trgt_data], binary_labels, epochs=epochs, validation_split=0.2, batch_size=batch_size)
@@ -76,6 +77,11 @@ class SiameseNetwork:
 
     def train(self, ent_src_data, ent_trgt_data, labels, epochs=10, batch_size=32):
         binary_labels = (labels > 0).astype(int)
+        if not hasattr(self, 'model'):
+            # Define a default HyperParameters object with default values
+            hp = HyperParameters()
+            hp.Int('units', min_value=32, max_value=512, step=32, default=128)
+            self.model = self.build_model(hp)
         self.model.fit([ent_src_data, ent_trgt_data], binary_labels, epochs=epochs, batch_size=batch_size)
 
     def predict(self, ent_src_data, ent_trgt_data, threshold=0.5):
@@ -116,7 +122,7 @@ class XGBoostModel:
     def predict(self, X_test):
         dtest = xgb.DMatrix(X_test)
         preds_proba = self.model.predict(dtest)
-        preds = np.argmax(preds_proba, axis=1)
+        preds = np.argmax(preds_proba, axis=1)  # get class labels
         return preds
 
     def evaluate(self, X_test, y_test):
@@ -163,65 +169,93 @@ class XGBoostModel:
         self.model.load_model(filepath)  # load data
 
 
-import os
-
-def main():
+def main(tune=True):
     # Load data
     loader = DataLoader('extracted_data/embeddings/ent_src_trgt_vectors.json')
     ent_src_data, ent_trgt_data, labels = loader.load_data()
 
+    # Create binary labels for Siamese Network
+    binary_labels = (labels > 0).astype(int)
+
     # Split data into training and test set
-    ent_src_train, ent_src_test, ent_trgt_train, ent_trgt_test, labels_train, labels_test = train_test_split(ent_src_data, ent_trgt_data, labels, test_size=0.2, random_state=42)
+    ent_src_train, ent_src_test, ent_trgt_train, ent_trgt_test, labels_train, labels_test, binary_labels_train, binary_labels_test = train_test_split(ent_src_data, ent_trgt_data, labels, binary_labels, test_size=0.2, random_state=42)
 
     input_shape = ent_src_train.shape[1:]
     siamese = SiameseNetwork(input_shape)
 
     if not os.path.exists('model/siamese_model.h5'):
-        # Tune Siamese Network
-        print("Tuning Siamese Network:")
-        siamese.tune(ent_src_train, ent_trgt_train, labels_train)
+        if tune:
+            # Tune Siamese Network
+            print("Tuning Siamese Network:")
+            best_params_siamese = siamese.tune(ent_src_train, ent_trgt_train, binary_labels_train)
+
+            # Save the best parameters
+            with open('siamese_best_params.json', 'w') as file:
+                json.dump(best_params_siamese, file)
 
         # Train Siamese Network
-        siamese.train(ent_src_train, ent_trgt_train, labels_train)
+        siamese.train(ent_src_train, ent_trgt_train, binary_labels_train)
         siamese.save('model/siamese_model.h5')
     else:
         siamese.load('model/siamese_model.h5')
 
     # Evaluate Siamese Network on Test Set
     print("Siamese Network Evaluation on Test Set:")
-    siamese.evaluate(ent_src_test, ent_trgt_test, labels_test)
+    siamese.evaluate(ent_src_test, ent_trgt_test, binary_labels_test)
 
     # Get matched data
-    matches = siamese.predict(ent_src_train, ent_trgt_train)
-    matched_src_data = ent_src_train[matches]
-    matched_trgt_data = ent_trgt_train[matches]
-    matches = matches.flatten()
-    matched_labels = labels_train[matches]
+    matches_train = siamese.predict(ent_src_train, ent_trgt_train)
+    matches_test = siamese.predict(ent_src_test, ent_trgt_test)
+
+    matched_src_train = ent_src_train[matches_train]
+    matched_trgt_train = ent_trgt_train[matches_train]
+    matched_src_test = ent_src_test[matches_test]
+    matched_trgt_test = ent_trgt_test[matches_test]
+
+    matches_train = matches_train.flatten()
+    matches_test = matches_test.flatten()
+
+    matched_labels_train = labels_train[matches_train]
+    matched_labels_test = labels_test[matches_test]
+
+    # Only feed the XGBoost model with pairs that have labels 1, 2, or 3
+    xgb_indices_train = np.where((matched_labels_train == 1) | (matched_labels_train == 2) | (matched_labels_train == 3))
+    xgb_indices_test = np.where((matched_labels_test == 1) | (matched_labels_test == 2) | (matched_labels_test == 3))
+
+    xgb_data_train = np.concatenate([matched_src_train[xgb_indices_train], matched_trgt_train[xgb_indices_train]], axis=1)
+    xgb_data_test = np.concatenate([matched_src_test[xgb_indices_test], matched_trgt_test[xgb_indices_test]], axis=1)
+
+    xgb_labels_train = matched_labels_train[xgb_indices_train]
+    xgb_labels_test = matched_labels_test[xgb_indices_test]
 
     # Train XGBoost
-    xgb_data = np.concatenate([matched_src_data, matched_trgt_data], axis=1)
-    X_train, X_test, y_train, y_test = train_test_split(xgb_data, matched_labels, test_size=0.2, random_state=42)
     xgb_params = {'max_depth': 3, 'eta': 0.3, 'objective': 'multi:softprob', 'num_class': 4, 'nthread': -1}
     xgb_model = XGBoostModel(xgb_params, num_round=20)
 
     if not os.path.exists('model/xgb_model.json'):
-        # Tune XGBoost
-        print("Tuning XGBoost:")
-        xgb_model.tune(X_train, y_train)
+        if tune:
+            # Tune XGBoost
+            print("Tuning XGBoost:")
+            best_params_xgb = xgb_model.tune(xgb_data_train, xgb_labels_train)
 
-        xgb_model.train(X_train, y_train)
+            # Save the best parameters
+            with open('xgb_best_params.json', 'w') as file:
+                json.dump(best_params_xgb, file)
+
+        # Train XGBoost
+        xgb_model.train(xgb_data_train, xgb_labels_train)
         xgb_model.save('model/xgb_model.json')
     else:
         xgb_model.load('model/xgb_model.json')
 
-    preds = xgb_model.predict(X_test)
+    preds = xgb_model.predict(xgb_data_test)
 
     # Evaluate XGBoost on Test Set
     print("XGBoost Evaluation on Test Set:")
-    xgb_model.evaluate(X_test, y_test)
+    xgb_model.evaluate(xgb_data_test, xgb_labels_test)
 
     return preds
 
 
 if __name__ == "__main__":
-    main()
+    main(tune=False)
