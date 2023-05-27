@@ -41,11 +41,15 @@ import gdown
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Set the path for the downloaded file
-output_path = os.path.join(base_dir, 'extracted_data.rar')
+output_path_data = os.path.join(base_dir, 'extracted_data.rar')
+output_path_model = os.path.join(base_dir, 'model.rar')
 
 # Download the file from Google Drive
-url = 'https://drive.google.com/uc?id=1h4PRX5ykvYYTq-YXJIxuNul3sLvYPlU8'
-gdown.download(url, output_path, quiet=False)
+url_data = 'https://drive.google.com/uc?id=1h4PRX5ykvYYTq-YXJIxuNul3sLvYPlU8'
+gdown.download(url_data, output_path_data, quiet=False)
+
+url_model = 'https://drive.google.com/uc?id=1h4PRX5ykvYYTq-YXJIxuNul3sLvYPlU8'
+gdown.download(url_model, output_path_model, quiet=False)
 ```
 Remember to adjust the url variable with the actual Google Drive URL of the .rar file you want to download.
 
@@ -58,7 +62,9 @@ import rarfile
 extraction_path = base_dir
 
 # Extract .rar file
-with rarfile.RarFile(output_path) as rf:
+with rarfile.RarFile(output_path_data) as rf:
+    rf.extractall(path=extraction_path)
+with rarfile.RarFile(output_path_model) as rf:
     rf.extractall(path=extraction_path)
 ```
 This script will extract the contents of the .rar file to the project directory.
