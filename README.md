@@ -45,10 +45,10 @@ output_path_data = os.path.join(base_dir, 'extracted_data.rar')
 output_path_model = os.path.join(base_dir, 'model.rar')
 
 # Download the file from Google Drive
-url_data = '[https://drive.google.com/uc?id=1h4PRX5ykvYYTq-YXJIxuNul3sLvYPlU8](https://drive.google.com/file/d/1h4PRX5ykvYYTq-YXJIxuNul3sLvYPlU8/view?usp=sharing)'
+url_data = 'https://drive.google.com/uc?id=1h4PRX5ykvYYTq-YXJIxuNul3sLvYPlU8'
 gdown.download(url_data, output_path_data, quiet=False)
 
-url_model = '[https://drive.google.com/uc?id=1h4PRX5ykvYYTq-YXJIxuNul3sLvYPlU8](https://drive.google.com/file/d/1v9a19SbL9_SR1Ta-vRNut56C613RKumH)'
+url_model = 'https://drive.google.com/file/d/1v9a19SbL9_SR1Ta-vRNut56C613RKumH'
 gdown.download(url_model, output_path_model, quiet=False)
 ```
 Remember to adjust the url variable with the actual Google Drive URL of the .rar file you want to download.
