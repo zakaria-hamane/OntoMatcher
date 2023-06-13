@@ -5,7 +5,7 @@ OntoMatcher is a project that focuses on enhancing biomedical ontology alignment
 
 If you are interested in learning more about the details and methodology of OntoMatcher, we recommend referring to the paper titled "OntoMatcher: Leveraging Context-Aware Siamese Networks, LLMs and BioBERT for Enhanced Biomedical Ontology Alignment." The paper is published in the Semantic Web Journal and can be accessed at the following link:
 
-(OntoMatcher: Leveraging Context-Aware Siamese Networks, LLMs and BioBERT for Enhanced Biomedical Ontology Alignment)[https://www.semantic-web-journal.net/content/ontomatcher-leveraging-context-aware-siamese-networks-llms-and-biobert-enhanced-biomedical]
+[OntoMatcher: Leveraging Context-Aware Siamese Networks, LLMs and BioBERT for Enhanced Biomedical Ontology Alignment](https://www.semantic-web-journal.net/content/ontomatcher-leveraging-context-aware-siamese-networks-llms-and-biobert-enhanced-biomedical)
 
 Please note that the README file is still a work in progress, and we will be updating it with more complete information soon.
 ## Status: In Progress
